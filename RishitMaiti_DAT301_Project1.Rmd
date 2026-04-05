@@ -1,0 +1,240 @@
+---
+title: "DAT 301 Project 1: What Team Efficiency Metrics Best Predict Winning in the NBA?"
+author: "Rishit Maiti"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+Sports analytics has become an essential tool in understanding performance and success in many sports including professional basketball, baseball, and many more. While traditional statistics such as points, assists, and shooting percentages have long been used to evaluate teams' performance and provide useful insights, they do not fully cover the efficiency and overall impact of a team's performance. Modern analytics introduce efficiency-based metrics that provide deeper insights.
+
+In recent years, advanced metrics such as offensive rating, defensive rating, and turnover percentage have been used more frequently. These metrics provide a deeper understanding of how efficiently teams score points and defend.
+
+The goal/purpose of this project is to analyze and determine which team-level performance and efficiency metrics best predict winning in the NBA. Specifically, my analysis will investigate and go over how efficiency metrics and variables such as offensive rating, defensive rating, shooting efficiency, and turnovers influence team success of the number of games a team wins.
+
+## Dataset
+The dataset used in this analysis comes from a Kaggle NBA statistics dataset, which contains team-level statistics across multiple NBA seasons.
+
+Key variables used:
+
+w: Number of wins, l: Number of losses, WinPct: Win percentage,
+
+mov: Margin of victory, o_rtg: Offensive rating (points scored per 100 possessions),
+
+d_rtg: Defensive rating (points allowed per 100 possessions),
+
+n_rtg: Net rating (offensive rating - defensive rating),
+
+pace: Game pace / number of possessions per game, ts_percent: True shooting percentage,
+
+e_fg_percent: Effective field goal percentage, tov_percent: Turnover percentage
+
+This dataset is good for this analysis as it provides both traditional and advanced performance metrics, which will allow us to evaluate which factors most strongly influence team success.
+
+\newpage
+## Data Cleaning and Preparation
+We start by filtering/loading and organizing/cleaning the dataset. Our main goal is to focus on and include only modern NBA seasons (2000s to present-day), create a variable for win percentage, and ensure that the dataset is usable for further analysis.
+```{r data}
+df <- read.csv("NBA_Stats/Team Summaries.csv")
+
+df2 <- subset(df, season >= 2000)
+
+df2$WinPct <- df2$w / (df2$w + df2$l)
+
+vars <- c(
+  "season", "team", "w", "l", "WinPct",
+  "mov", "o_rtg", "d_rtg", "n_rtg", "pace",
+  "ts_percent", "e_fg_percent", "tov_percent"
+)
+
+nba <- df2[, vars]
+
+## Added code to remove any missing values
+nba <- na.omit(nba)
+
+head(nba)
+summary(nba)
+```
+**Explanation**:
+-  I filtered/organized to include only seasons from 2000 onward to        reflect modern NBA play styles.
+-  A new variable, WinPct (Win Percentage), is created to standardize 
+   performance and make it consistent across seasons.
+-  Only relevant variables are selected to simplify analysis.
+-  Missing values are removed using na.omit() to ensure clean and 
+   consistent results.
+
+\newpage
+## Exploratory Data Analysis (EDA) - Histograms
+EDA is used to understand the distribution and relationships of variables before building models.
+```{r hist1}
+hist(nba$w, main= "Histogram of Wins", xlab = "Wins")
+```
+**Comment**: The distribution of wins appears approximately normal as it is centered around 40–45 wins. This reflects and aligns with  the balanced nature of the NBA, where most teams hang  around average performance, with fewer teams achieving very high or very low win totals.
+
+\newpage
+```{r hist2}
+hist(nba$WinPct, main = "Histogram of Win Percentage", xlab = "Win %")
+```
+**Comment**: Win percentage is also approximately normally distributed, with most teams falling between the range of 0.4 and 0.6. This indicates that the majority of teams perform near average, with relatively few extreme high-performing or low-performing teams.
+
+\newpage
+```{r hist3}
+hist(nba$mov, main = "Histogram of Margin of Victory", xlab = "MOV")
+```
+**Comment**: Margin of victory is centered around zero and shows a roughly  symmetric distribution. This suggests that most teams are either slightly outscored or are slightly outscored by opponents, with only a few teams having very large positive or negative margins.
+
+\newpage
+```{r hist4}
+hist(nba$o_rtg, main = "Histogram of Offensive Rating", xlab = "Offensive Rating")
+```
+**Comment**:
+Overall, these histograms show that key variables like wins and win percentage are approximately normally distributed, with most teams clustered around average performance. Margin of victory is centered near zero, indicating that most teams are relatively balanced overall. Offensive rating also shows a fairly normal distribution, suggesting that most teams fall within a similar efficiency range, with only a few extreme outliers. Basically,  wins and win percentage appear relatively normally distributed, while margin of victory and offensive rating 
+show moderate-to-no variation across teams.
+
+\newpage
+# Scatter Plots
+```{r scatter1}
+plot(nba$mov, nba$w,
+     main = "Wins vs Margin of Victory",
+     xlab = "Margin of Victory", ylab = "Wins")
+```
+**Comment**: There is a very strong positive linear relationship between margin of victory and wins. Teams with higher average scoring margins tend to win significantly more games, making this one of the strongest predictors of success.
+
+\newpage
+```{r scatter2}
+plot(nba$o_rtg, nba$w,
+     main = "Wins vs Offensive Rating",
+     xlab = "Offensive Rating", ylab = "Wins")
+```
+**Comment**: There is a clear positive relationship between offensive rating and wins. Teams that score more efficiently tend to win more games, although the relationship is slightly more spread out compared to margin of victory.
+
+\newpage
+```{r scatter3}
+plot(nba$d_rtg, nba$w,
+     main = "Wins vs Defensive Rating",
+     xlab = "Defensive Rating", ylab = "Wins")
+```
+**Comment**: There is a strong negative relationship between defensive rating and wins. Since lower defensive rating indicates better defense, this shows that teams that allow fewer points per possession tend to win more games.
+
+\newpage
+```{r scatter4}
+plot(nba$tov_percent, nba$w,
+     main = "Wins vs Turnover Percentage",
+     xlab = "Turnover Percentage", ylab = "Wins")
+```
+**Comment**: The relationship between turnover percentage and wins appears weaker and slightly negative. Teams that commit fewer turnovers tend to win more games, but this effect is less pronounced compared to offensive and defensive efficiency metrics.
+
+Overall, these scatter plots help us visualize clear relationships between variables (efficiency metrics) and wins, particularly for offensive and defensive ratings.
+
+Margin of victory shows a very strong positive linear relationship with wins, showing that teams that consistently outscore their opponents tend to win  more games, which is expected. Both offensive and defensive ratings show strong  linear relationships with wins, while turnover percentages show a weaker/negative trend. Offensive rating also shows a positive relationship with wins, while defensive rating shows a strong negative relationship, meaning better defenses (lower values) 
+are associated with more wins. Turnover percentage shows a weaker negative trend, which suggests that teams with fewer turnovers tend to perform slightly better.
+
+\newpage
+## Correlation Analysis
+```{r corr}
+num_data <- nba[, c("w", "WinPct", "mov", "o_rtg", "d_rtg",
+                    "n_rtg", "pace", "ts_percent", "e_fg_percent", "tov_percent")]
+
+cor(num_data)
+```
+**Comment**: The correlation matrix confirms that the relationships observed in the scatter plots are accurate. Wins are strongly and positively correlated with margin of victory, net rating, and offensive rating, and negatively correlated  with defensive rating. Net rating shows an extremely high correlation with wins, indicating that it is one of the strongest overall predictors of team success. Turnover percentage and pace also show weaker correlations, suggesting they have less direct impact on wins compared to efficiency metrics.
+\newpage
+```{r lib}
+library(corrplot)
+corrplot(cor(num_data), method = "color")
+```
+**Comment**: The correlation matrix highlights the strong relationships between variables. Strong correlations are shown between wins and efficiency metrics such as offensive rating, defensive rating, and net rating.
+
+\newpage
+## Additional Visualization: Net Rating vs Wins
+To further prove my point, I will include a visualization that will analyze the relationship between net rating (n_rtg) and wins. Net rating combines both offensive and defensive performance into a single metric, making it a strong indicator of overall team strength.
+```{r add}
+plot(nba$n_rtg, nba$w,
+     main = "Wins vs Net Rating",
+     xlab = "Net Rating", ylab = "Wins")
+```
+**Comment**: This plot shows a very strong positive relationship between net rating and wins. Teams with higher net ratings consistently win more games, which reinforces the idea that overall efficiency (offense + defense combined) is one of the best predictors of team success.
+
+\newpage
+# Regression Model
+## Full model
+```{r}
+model1 <- lm(w ~ mov + o_rtg + d_rtg + n_rtg + pace + ts_percent + 
+               e_fg_percent + tov_percent, data = nba)
+
+summary(model1)
+```
+
+The full regression model includes all selected variables to evaluate their combined effect on team wins. This model helps identify which efficiency metrics are significant predictors before we begin simplifying the model to help us better understand and interpret
+the results accurately.
+
+\newpage
+# Simplified model
+```{r}
+model2 <- lm(w ~ mov + o_rtg + d_rtg + e_fg_percent + tov_percent, data = nba)
+summary(model2)
+```
+Regression models are used to determine how multiple variables can simultaneously affect wins. This simplified model makes it easier for us to interpret the data while still being able to make effective predictions.
+
+\newpage
+## Results and Interpretation
+The simplified regression model explains approximately 88.7% of the variability in team wins (R² = 0.8873), indicating a strong fit and that the selected variables are highly predictive of team success.
+
+**Overall Model Strength**: My model explains that approximately 88.7% of the variability in team wins, which indicates a very strong relationship between the selected efficiency metrics and overall team success. This suggests that the variables I used in this model can be highly effective when it comes to predicting wins in the NBA.
+
+Key Findings:
+
+- Offensive Rating (o_rtg)
+   - Offensive rating has a strong positive and statistically                significant relationship with wins, indicating that teams with          better offensive efficiency tend to win more games.
+   - Coefficient: +3.69
+   - p-value: 1.09e-07 => (very significant)
+   
+- Defensive Rating (d_rtg)
+   - Defensive rating has a strong negative and statistically                significant relationship with wins. Lower defensive ratings are         better, which suggests that strong defense is crucial for success.
+- Margin of Victory (mov)
+   - Margin of victory is statistically significant, but its negative        coefficient may be affected due to multicollinearity with other         variables like offensive and defensive rating.
+   - Coefficient: -1.57
+   - p-value: 0.028
+- Effective Field Goal Percentage (e_fg_percent)
+   - This variable is not statistically significant when other variables
+     are included, meaning that its effect may already be captured due
+     to the offensive rating.
+   - p-value: 0.46
+- Turnover Percentage (tov_percent)
+   - Turnover percentage shows a marginally significant / negative      
+     relationship with wins, which shows that limiting turnovers may 
+     contribute to team success, even though its effects are weaker 
+     compared to the other variables.
+   - p-value: 0.054
+   
+Overall, in general, these team efficiency metrics, especially offensive and defensive ratings, are the most significant when determining team success, while individual/traditional statistics may have a smaller impact when the efficiency is already accounted for. All of these show that overall team  efficiency is more important than individual/traditional statistics.
+   
+\newpage
+## Residual Analysis
+```{r Res}
+plot(model2$fitted.values, model2$residuals,
+     main = "Residual Plot",
+     xlab = "Fitted Wins", ylab = "Residuals")
+abline(h = 0, lty = 2)
+```
+**Comment**: The residual plot shows that residuals are randomly scattered around zero with no clear pattern, indicating that the linear model assumptions are pretty much satisfied. The spread of residuals appears relatively consistent across fitted  values, suggesting no strong and unequal variability. Overall, this indicates that the model provides a good fit for predicting wins.
+
+\newpage
+```{r histRes}
+hist(model2$residuals, main = "Histogram of Residuals", xlab = "Residuals")
+```
+Residual plots are used to evaluate model assumptions. Specifically, we analyze the linear model, constant variance, and normality of errors. The residuals appear to  be randomly distributed, which shows that the model is appropriate. This supports the assumption of normally distributed errors in the regression model.
+
+\newpage
+## Conclusion and Future Findings
+This analysis demonstrates that team efficiency metrics, particularly offensive  and defensive ratings, are the strongest predictors of winning in the NBA. While traditional statistics such as shooting efficiency and turnovers contribute to performance, their impact is less significant when accounting for overall team efficiency. These findings highlight the importance of advanced metrics in modern basketball analysis, which can help us evaluate basketball success and 
+provide valuable insights into the factors that drive team success and winning outcomes in the NBA.
+
+**Future Work:** Future research could explore how these relationships change over time or differ across different eras of basketball and the NBA.
+
+## Presentation Summary
+In summary, the model explains about 89% of the variation in wins, which shows a very strong relationship between team performance metrics and success. The most important factors identified were offensive rating and defensive rating, meaning that teams that score efficiently and defend well tend to win more games by a significant amount. Other variables like shooting efficiency and turnovers still play a big role, but their impact becomes less significant once overall team efficiency is taken into account.
